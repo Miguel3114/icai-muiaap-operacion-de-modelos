@@ -69,6 +69,7 @@ def train_and_evaluate(path: Path) -> dict[str, object]:
             average="macro",
             zero_division=0,
         ),
+        "average": dataset[TARGET].mean()
     }
 
 
@@ -80,6 +81,7 @@ def main() -> None:
     print(f"Variables: {metrics['features']}")
     print(f"Clases: {len(metrics['classes'])}")
     print(f"F1 macro: {metrics['validation_f1_macro']:.4f}")
+    print(f"Average: {metrics['average']}")
 
 
 if __name__ == "__main__":
