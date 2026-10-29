@@ -115,3 +115,26 @@ def test_manifest_shape_is_strict() -> None:
                 "unexpected": "not allowed",
             }
         )
+
+def test_load_model_bundle_rejects_invalid_preprocessing_version(tmp_path):
+    bundle_path = tmp_path / "bundle"
+    bundle_path.mkdir()
+
+    manifest = {
+        "schema_version": "wine-quality-bundle-v1",
+        "model_version": "wine-quality-rf-v1",
+        "preprocessing_version": "version-invalida",
+        "feature_names": list(FEATURE_NAMES),
+        "output_labels": ["needs_review", "acceptable", "excellent"],
+        "estimator_type": "DummyEstimator",
+    }
+
+    (bundle_path / "manifest.json").write_text(
+        json.dumps(manifest),
+        encoding="utf-8",
+    )
+
+    (bundle_path / "model.joblib").write_bytes(b"contenido cualquiera")
+
+    with pytest.raises(ValueError, match="manifest.json inválido"):
+        load_model_bundle(bundle_path)
