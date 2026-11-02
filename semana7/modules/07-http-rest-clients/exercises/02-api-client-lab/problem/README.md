@@ -30,6 +30,35 @@ Ejecuta el POST válido y el inválido ya preparados.
 **TODO 1:** registra método, path, `Content-Type`, status, `request_id` y el
 campo rechazado. Explica por qué el segundo caso es `422`, no `400`.
 
+
+**POST valido:**
+
+path: http://127.0.0.1:8000/v1/predictions
+
+Content-Type: application/json
+
+status: OK
+
+request_id: req_dd7b00307a0d
+
+{"machine_id": "pump-017", "prediction": {"label": "maintenance_required", "risk_score": 0.85}, "model_version": "pump-risk-1.0.0", "request_id": "req_dd7b00307a0d"}
+
+**POST inválido:**
+
+path: http://127.0.0.1:8000/v1/predictions
+
+Content-Type: application/json
+
+status: 422 Unprocessable Entity
+
+request_id: req_2f11a36fdde2
+
+El campo rechazado es vibration_mm_s
+
+El error es 422 porque la petición es correcta y la sintaxis del JSON es válida pero los datos no cumplen las reglas de validación
+
+{"error": {"code": "validation_error", "message": "JSON is valid but violates the input contract", "fields": [{"field": "measurements.vibration_mm_s", "message": "must be a number"}]}, "request_id": "req_2f11a36fdde2"}
+
 **Comprobación:** no confundas `maintenance_required` con un error HTTP; el
 primer status sigue siendo `200`.
 
@@ -77,6 +106,21 @@ que no sea un objeto JSON. Comprueba el test de contrato de salida.
 ## Evidencia final
 
 - cinco tests verdes;
+
+![alt text](starter/evidencias/tests_en_verde.png)
+
 - salida de un `200` y un `422`;
+
+![alt text](starter/evidencias/get_ok.png)
+
+![alt text](starter/evidencias/post_ok.png)
+
+![alt text](starter/evidencias/post_422.png)
+
 - una frase que explique por qué no conviene reintentar ciegamente un POST;
+
+No conviene reintentar automáticamente una petición POST porque el servidor podría haberla procesado aunque el cliente no haya recibido la respuesta, provocando operaciones duplicadas. Solo debe reintentarse cuando se garantice que es seguro hacerlo.
+
 - ningún cambio en la API de caja negra.
+
+
