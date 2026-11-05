@@ -76,13 +76,54 @@ def collect_values(st: Any) -> tuple[bool, dict[str, float]]:
 def get_cached_gateway(st: Any, bundle_value: str | None) -> InferenceGateway:
     """TODO: usa `st.cache_resource` sobre el gateway, no sobre la respuesta."""
 
-    raise NotImplementedError("TODO: cachea el gateway heredado de S5")
+    @st.cache_resource
+    def load_gateway(bundle):
+        return build_gateway(bundle)
+
+    return load_gateway(bundle_value)
 
 
 def render_state(st: Any, state: UiState, target: Any | None = None) -> None:
     """TODO: presenta idle/loading/success/error en un target de Streamlit."""
 
-    raise NotImplementedError("TODO: renderiza el estado sin mostrar excepciones")
+    output = target or st
+    if state.phase == "idle":
+        output.info("Completa el formulario y pulsa “Ejecutar inferencia”.")
+        return
+    if state.phase == "loading":
+        output.info("Validando la muestra y ejecutando el modelo…")
+        return
+    if state.phase == "error" and state.error:
+        output.error(state.error.title)
+        output.write(state.error.message)
+        output.info(state.error.recovery)
+        output.caption(f"Request ID: {state.error.request_id}")
+        return
+    if state.phase != "success" or state.view is None:
+        return
+
+    view = state.view
+    output.success(view.quality_label)
+    columns = output.columns(3)
+    columns[0].metric("Confianza", f"{view.confidence:.0%}")
+    columns[1].metric("Latencia", f"{view.latency_ms:.1f} ms")
+    columns[2].metric("Nivel", view.confidence_label)
+    if view.confidence_level == "low":
+        output.warning(view.confidence_message)
+    else:
+        output.info(view.confidence_message)
+    if view.latency_status == "above_target":
+        output.warning(view.latency_message)
+    else:
+        output.caption(view.latency_message)
+    with output.expander("Trazabilidad"):
+        output.write(
+            {
+                "model_version": view.model_version,
+                "preprocessing_version": view.preprocessing_version,
+                "request_id": state.request_id,
+            }
+        )
 
 
 def main() -> None:

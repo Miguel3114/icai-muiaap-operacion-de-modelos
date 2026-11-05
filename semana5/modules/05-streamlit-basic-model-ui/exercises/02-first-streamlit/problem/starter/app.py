@@ -45,18 +45,30 @@ def collect_values(st: Any) -> tuple[bool, dict[str, float]]:
     Cada ``number_input`` debe recibir label, rango, default, step y una key
     estable. Devuelve ``(submitted, values)`` sin llamar al gateway.
     """
-
-    raise NotImplementedError(
-        f"TODO: renderiza los {len(FIELD_SPECS)} campos de FIELD_SPECS"
-    )
+    values = {}
+    with st.form("wine_quality_form"):
+        for field in FIELD_SPECS:
+            values[field.name] = float(
+                st.number_input(
+                    label=field.label,
+                    min_value=field.min_value,
+                    max_value=field.max_value,
+                    value=field.default,
+                    step=field.step,
+                    key=f"input_{field.name}",
+                )
+            )
+        submitted = st.form_submit_button("Ejecutar inferencia")
+    return submitted, values
 
 
 def render_prediction(st: Any, prediction: PredictionPayload) -> None:
     """TODO: presenta los cuatro campos de ``PredictionPayload``."""
 
-    raise NotImplementedError(
-        "TODO: presenta quality_band, confidence y las dos versiones"
-    )
+    st.write(f"quality_band: {prediction.quality_band}")
+    st.write(f"confidence: {prediction.confidence:.2f}")
+    st.caption(f"model_version: {prediction.model_version}")
+    st.caption(f"preprocessing_version: {prediction.preprocessing_version}")
 
 
 def run_app(st: Any, gateway: InferenceGateway) -> None:
