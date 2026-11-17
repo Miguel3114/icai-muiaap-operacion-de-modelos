@@ -8,3 +8,7 @@ router = APIRouter()
 
 
 # TODO: POST /chat (entrada ChatEntrada, salida ChatSalida). Recibe el LLM con Depends(get_llm)
+
+@router.post("/chat", response_model=ChatSalida)
+def chat(entrada: ChatEntrada, llm=Depends(get_llm)):
+    return responder(entrada.mensajes, llm)
