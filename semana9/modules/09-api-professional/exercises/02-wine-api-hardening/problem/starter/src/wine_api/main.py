@@ -15,7 +15,28 @@ from wine_api.routers import health, predictions
 # `version` (¿mayor, menor o parche tras S9.1c?), `summary`, una `description`
 # en Markdown que explique `request_id` y el sobre de error, y `openapi_tags`
 # con una descripción por tag. Comprobación: tests/test_s9_3_openapi.py
-API_VERSION = "1.0.0"
+API_VERSION = "1.1.0"
+API_SUMMARY = "Predicción de la calidad de vino tinto a partir de su analítica."
+API_DESCRIPTION = """
+Clasifica un vino tinto en `needs_review`, `acceptable` o `excellent`.
+
+**Trazabilidad.** Cada respuesta incluye un `request_id`, también en la
+cabecera `X-Request-Id`. Cítalo al reportar una incidencia.
+
+**Errores.** Todos los errores usan el mismo sobre:
+
+```json
+{"error": {"code": "validation_error", "message": "...", "fields": [...]},
+ "request_id": "req_..."}
+```
+
+Programa contra `error.code`, no contra el texto de `message`.
+"""
+
+OPENAPI_TAGS = [
+    {"name": "health", "description": "Estado del servicio y del modelo cargado."},
+    {"name": "predictions", "description": "Inferencia de calidad de vino tinto."},
+]
 
 
 def create_app(predictor: Predictor | None = None) -> FastAPI:
@@ -28,7 +49,14 @@ def create_app(predictor: Predictor | None = None) -> FastAPI:
         )
         yield
 
-    app = FastAPI(title="Wine Quality API", version=API_VERSION, lifespan=lifespan)
+    app = FastAPI(
+        title="Wine Quality API",
+        version=API_VERSION,
+        summary=API_SUMMARY,
+        description=API_DESCRIPTION,
+        openapi_tags=OPENAPI_TAGS,
+        lifespan=lifespan,
+    )
     app.middleware("http")(request_id_middleware)
     install_error_handlers(app)
     app.include_router(health.router)
