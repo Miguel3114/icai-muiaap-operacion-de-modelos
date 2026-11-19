@@ -155,6 +155,9 @@ class ErrorCode(StrEnum):
     # permisos, esperar `Retry-After`)?
     MODEL_UNAVAILABLE = "model_unavailable"
     INTERNAL_ERROR = "internal_error"
+    UNAUTHORIZED = "unauthorized"
+    FORBIDDEN = "forbidden"
+    RATE_LIMITED = "rate_limited"
 
 
 class FieldError(BaseModel):

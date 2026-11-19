@@ -8,12 +8,10 @@ Las dos claves de esta demo son públicas a propósito y solo sirven aquí. En l
 práctica las claves se leen de la configuración (S10.1), nunca del código.
 
     # Sin clave: 401 con WWW-Authenticate
-    curl -i -X POST http://127.0.0.1:8000/v1/scores \\
-      -H "Content-Type: application/json" -d '{"age": 42, "income": 38000}'
+    curl -i -X POST http://127.0.0.1:8000/v1/scores -H "Content-Type: application/json" -d '{"age": 42, "income": 38000}'
 
     # Cliente front (scope predict): 200
-    curl -i -X POST http://127.0.0.1:8000/v1/scores -H "X-API-Key: demo-front-key" \\
-      -H "Content-Type: application/json" -d '{"age": 42, "income": 38000}'
+    curl -i -X POST http://127.0.0.1:8000/v1/scores -H "X-API-Key: demo-front-key" -H "Content-Type: application/json" -d '{"age": 42, "income": 38000}'
 
     # front no tiene scope admin: 403; ops sí: 200
     curl -i http://127.0.0.1:8000/v1/admin/usage -H "X-API-Key: demo-front-key"

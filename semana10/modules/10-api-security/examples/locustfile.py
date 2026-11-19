@@ -8,7 +8,7 @@ Arranca primero una demo en otra terminal, por ejemplo con un límite de 60/min:
 Y lanza 20 usuarios durante un minuto desde la raíz del módulo:
 
     LOCUST_API_KEY=demo-limits-key uv run --group load locust \\
-      -f examples/locustfile.py --headless -u 20 -r 5 -t 1m \\
+      -f examples/locustfile.py -u 20 -r 5 -t 1m \\
       --host http://127.0.0.1:8000
 
 Sin `--headless`, Locust abre su interfaz en <http://localhost:8089>. Locust
