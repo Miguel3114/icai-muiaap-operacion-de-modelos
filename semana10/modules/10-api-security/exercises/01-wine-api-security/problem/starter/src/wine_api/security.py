@@ -18,6 +18,8 @@ from fastapi import Security
 from fastapi.security import APIKeyHeader  # noqa: F401 - pista para S10.2d
 
 from wine_api.dependencies import RequestIdDep, SettingsDep
+from wine_api.errors import AuthenticationError, PermissionDeniedError
+from wine_api.schemas import ErrorResponse
 from wine_api.settings import Scope
 
 logger = logging.getLogger("wine_api.security")
@@ -29,6 +31,22 @@ API_KEY_HEADER = "X-API-Key"
 # `auto_error`: si lo dejas en `True`, FastAPI responde por ti con su propio
 # error y se rompe el sobre `ErrorResponse`. Añade una `description` para
 # Swagger. Comprobación: /docs muestra el botón «Authorize».
+api_key_header = APIKeyHeader(
+    name=API_KEY_HEADER,
+    auto_error=False,
+    description="API key del cliente. La entrega el equipo de operación.",
+)
+
+AUTH_RESPONSES: dict[int | str, dict] = {
+    401: {
+        "model": ErrorResponse,
+        "description": "Falta la cabecera `X-API-Key` o la clave no es válida.",
+    },
+    403: {
+        "model": ErrorResponse,
+        "description": "La clave es válida, pero no tiene el scope necesario.",
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -41,7 +59,9 @@ class AuthenticatedClient:
 
 
 def authenticate_client(
-    settings: SettingsDep, request_id: RequestIdDep
+    settings: SettingsDep,
+    request_id: RequestIdDep,
+    api_key: Annotated[str | None, Security(api_key_header)],
 ) -> AuthenticatedClient:
     """Identifica al cliente por su API key o lanza `AuthenticationError`."""
 
@@ -56,7 +76,21 @@ def authenticate_client(
     # - si falta o no coincide, registra el intento con `logger.warning` (con
     #   el `request_id`, NUNCA con la clave) y lanza `AuthenticationError`.
     # Comprobación: uv run pytest -q tests/test_s10_2_authentication.py
-    raise NotImplementedError("TODO S10.2e")
+    if api_key:
+        candidate = api_key.encode()
+        for name, client in settings.clients.items():
+            expected = client.key.get_secret_value().encode()
+            if secrets.compare_digest(candidate, expected):
+                return AuthenticatedClient(
+                    name=name,
+                    scopes=frozenset(client.scopes),
+                    rate_limit_per_minute=client.rate_limit_per_minute,
+                )
+    logger.warning(
+        "Rejected request without a valid API key",
+        extra={"request_id": request_id, "api_key_present": bool(api_key)},
+    )
+    raise AuthenticationError()
 
 
 ClientDep = Annotated[AuthenticatedClient, Security(authenticate_client)]
@@ -71,4 +105,12 @@ def require_scope(scope: Scope) -> Callable[..., AuthenticatedClient]:
     # dependencia que luego se usa en `dependencies=[Depends(...)]`.
     # ¿Por qué falta de scope es 403 y no 401?
     # Comprobación: uv run pytest -q tests/test_s10_3_authorization.py
-    raise NotImplementedError("TODO S10.3b")
+    def check_scope(client: ClientDep) -> AuthenticatedClient:
+        if scope not in client.scopes:
+            logger.warning(
+                "Client %s lacks scope %s", client.name, scope, extra={"scope": scope}
+            )
+            raise PermissionDeniedError()
+        return client
+
+    return check_scope

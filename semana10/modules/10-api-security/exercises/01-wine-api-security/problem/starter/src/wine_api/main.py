@@ -9,8 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: F401 - pista para S1
 from wine_api.errors import install_error_handlers
 from wine_api.predictor import Predictor, build_predictor
 from wine_api.rate_limit import FixedWindowRateLimiter
-from wine_api.request_id import request_id_middleware
+from wine_api.request_id import REQUEST_ID_HEADER, request_id_middleware
 from wine_api.routers import admin, health, predictions
+from wine_api.security import API_KEY_HEADER
 from wine_api.settings import Settings
 
 # TODO S10.6b: ¿qué versión semántica corresponde a una API que pasa a exigir
@@ -20,11 +21,15 @@ from wine_api.settings import Settings
 # Después regenera el contrato (S10.6c):
 #   uv run python -m wine_api.export_openapi && git diff contracts/openapi.json
 # Comprobación: tests/test_s10_6_openapi.py
-API_VERSION = "1.1.0"
+API_VERSION = "2.0.0"
 
 API_DESCRIPTION = """
 Servicio de inferencia del proyecto **Wine Quality** de Operación de Modelos.
 
+- `POST /v1/predictions` y `/v1/admin/*` exigen la cabecera `X-API-Key`; pulsa
+  **Authorize** para probarlos desde aquí. `GET /health` es público.
+- Cada clave tiene scopes (`predict`, `admin`) y una cuota por minuto: un `429`
+  trae `Retry-After` con los segundos que hay que esperar.
 - Todas las respuestas incluyen `request_id` y la cabecera `X-Request-Id`.
 - Todos los errores comparten el sobre `ErrorResponse`; programa contra
   `error.code`, no contra `error.message`.
@@ -34,6 +39,7 @@ Servicio de inferencia del proyecto **Wine Quality** de Operación de Modelos.
 OPENAPI_TAGS = [
     {"name": "health", "description": "Disponibilidad del servicio y del modelo."},
     {"name": "predictions", "description": "Inferencia de calidad de vino tinto."},
+    {"name": "admin", "description": "Operación del servicio; exige scope `admin`."},
 ]
 
 
@@ -55,6 +61,7 @@ def create_app(
     # `/openapi.json` deben responder 404. Investiga los parámetros `docs_url`,
     # `redoc_url` y `openapi_url` de `FastAPI(...)`. ¿Desactivar la
     # documentación protege la API o solo reduce lo que se anuncia?
+    docs_enabled = settings.docs_enabled
     app = FastAPI(
         title="Wine Quality API",
         version=API_VERSION,
@@ -62,7 +69,11 @@ def create_app(
         description=API_DESCRIPTION,
         openapi_tags=OPENAPI_TAGS,
         lifespan=lifespan,
+        docs_url="/docs" if docs_enabled else None,
+        redoc_url="/redoc" if docs_enabled else None,
+        openapi_url="/openapi.json" if docs_enabled else None,
     )
+
     app.state.settings = settings
     app.state.rate_limiter = rate_limiter or FixedWindowRateLimiter()
 
@@ -75,6 +86,15 @@ def create_app(
     # no debe pasar por la autenticación? Pista: el último middleware que se
     # añade es el más externo.
     # Comprobación: uv run pytest -q tests/test_s10_5_cors.py
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type", API_KEY_HEADER],
+        expose_headers=[REQUEST_ID_HEADER, "Retry-After", "X-RateLimit-Remaining"],
+        allow_credentials=False,
+    )
+
     install_error_handlers(app)
     app.include_router(health.router)
     app.include_router(predictions.router)

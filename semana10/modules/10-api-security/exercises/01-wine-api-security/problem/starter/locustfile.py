@@ -41,6 +41,8 @@ class WineApiUser(HttpUser):
     # Investiga `self.client.headers` en la documentación de Locust
     # («HttpSession»). Comprobación: sin este paso, todas las predicciones
     # fallan con 401.
+    def on_start(self) -> None:
+        self.client.headers["X-API-Key"] = os.environ["LOCUST_API_KEY"]
 
     @task(8)
     def predict(self) -> None:
@@ -50,6 +52,18 @@ class WineApiUser(HttpUser):
     # trate el `422` como ÉXITO (es la respuesta correcta a un payload inválido)
     # y cualquier otro status como fallo. Investiga `catch_response=True` y
     # dale un `name=` distinto para que salga en otra fila del informe.
+    @task(1)
+    def predict_invalid(self) -> None:
+        with self.client.post(
+            "/v1/predictions",
+            json={"features": INVALID_FEATURES},
+            name="/v1/predictions [422]",
+            catch_response=True,
+        ) as response:
+            if response.status_code == 422:
+                response.success()
+            else:
+                response.failure(f"expected 422, got {response.status_code}")
 
     @task(1)
     def health(self) -> None:
